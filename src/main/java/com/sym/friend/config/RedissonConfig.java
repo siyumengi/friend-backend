@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Redisson 配置
- * @author siyumengi
+ * @author siyumeng
  */
 @Configuration
 @ConfigurationProperties(prefix = "spring.redis")

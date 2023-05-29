@@ -5,7 +5,7 @@ import com.sym.friend.common.ErrorCode;
 
 /**
  * 自定义异常类
- * @author siyumengi
+ * @author siyumeng
  */
 public class BusinessException extends RuntimeException {
 

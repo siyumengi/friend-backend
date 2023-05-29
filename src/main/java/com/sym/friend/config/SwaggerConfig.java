@@ -15,7 +15,7 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 /**
  * 自定义 Swagger 接口文档的配置
  *
- * @author siyumengi
+ * @author siyumeng
  */
 @Configuration
 @EnableSwagger2WebMvc

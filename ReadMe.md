@@ -366,4 +366,75 @@ public class GlobalExceptionHandler {
 
 总结以往的编写经验，可以得出 common，utils，config，exception 这四个包以后在开发新项目可以直接copy。
 
-开了 userController 的小头，编写了 注册的接口，下午争取能把 userController 的逻辑编写完，能写一下前台页面，好像还少了后台的管理页面。
+开了 userController 的小头，编写了注册的接口，下午争取能把 userController 的逻辑编写完，能写一下前台页面，好像还少了后台的管理页面。
+
+### 五月二十九日晚上
+
+#### 编写注册接口
+
+封装一个注册的 userRegisterRequest 类
+
+```java
+    /**
+     * 账号
+     */
+    private String userAccount;
+    /**
+     * 邮箱
+     */
+    private String userEmail;
+
+    /**
+     * 验证码
+     */
+    private String code;
+
+    /**
+     * 用户密码
+     */
+    private String userPassword;
+
+    /**
+     * 检验密码
+     */
+    private String checkPassword;
+```
+
+1. 前台传递的参数是否为空
+2. 参数校验
+    1. 不能为空
+    2. 账户长度不少于 4 位
+    3. 邮箱填写正确
+    4. 验证码应为 6 位
+    5. 密码长度不少于 8 位
+    6. 用户账号不能存在特殊字符
+3. 用户密码和校验密码相同
+4. 验证码是否相同
+    1. 获取验证码
+    2. 比较验证码
+5. 密码加盐
+6. 保存数据
+
+#### 验证码
+
+用 QQ 邮箱作为注册选项
+
+```java
+            //发送一个六位数的验证码,把验证码变成String类型
+            code = ValidateCodeUtils.generateValidateCode(6).toString();
+            String text = "【friend 系统】您好，您的验证码为：" + code + "，请在5分钟内使用";
+            log.info("验证码为：" + code);
+            //发送短信
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(from);
+            message.setTo(userEmail);
+            message.setSubject(subject);
+            message.setText(text);
+            //发送邮件
+            javaMailSender.send(message);
+            UserSendMessage userSendMessage = new UserSendMessage();
+            userSendMessage.setUserEmail(userEmail);
+            userSendMessage.setCode(code);
+```
+
+虽然中途出了点问题，只写了这两个，明天得加速了，冲

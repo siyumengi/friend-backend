@@ -13,15 +13,28 @@ import java.io.Serializable;
 @Data
 public class UserRegisterRequest implements Serializable {
 
-
+    /**
+     * 账号
+     */
     private String userAccount;
-
+    /**
+     * 邮箱
+     */
     private String userEmail;
 
+    /**
+     * 验证码
+     */
     private String code;
 
+    /**
+     * 用户密码
+     */
     private String userPassword;
 
+    /**
+     * 检验密码
+     */
     private String checkPassword;
 
 

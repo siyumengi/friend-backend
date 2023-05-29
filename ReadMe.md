@@ -264,3 +264,106 @@ controller、service、model、mapper
 
 编写了一些基础的包，接下来两个小时可以设计一下用户表和考虑会用到什么
 
+### 用户表
+
+设计了用户表，用 Mybatis X 生成了user 的 mapper、controller、service。
+
+```java
+CREATE TABLE `user`  (
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '用户 ID',
+  `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '用户昵称',
+  `userPassword` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '密码',
+  `nickname` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '昵称',
+  `gender` tinyint(0) NOT NULL DEFAULT 0 COMMENT '性别：0-未知；1-男；2-女',
+  `age` tinyint(0) NULL DEFAULT NULL COMMENT '年龄',
+  `phone` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '电话',
+  `email` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '邮箱',
+  `userStatus` int(0) NOT NULL DEFAULT 0 COMMENT '状态 0 - 正常',
+  `avatar` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '头像地址',
+  `tags` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '标签 json 列表',
+  `userRole` int(0) NOT NULL DEFAULT 0 COMMENT '用户角色 0 - 普通用户 1 - 管理员',
+  `createTime` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `updateTime` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
+  `isDelete` tinyint(0) NOT NULL DEFAULT 0 COMMENT '是否删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_username`(`username`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户表' ROW_FORMAT = Dynamic;
+
+```
+
+### 编写了自定义异常和全局异常处理器
+
+自定义异常
+
+```java
+/**
+ * 自定义异常类
+ * @author siyumengi
+ */
+public class BusinessException extends RuntimeException {
+
+    private final int code;
+
+    private final String description;
+
+    public BusinessException(String message, int code, String description) {
+        super(message);
+        this.code = code;
+        this.description = description;
+    }
+
+    public BusinessException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.code = errorCode.getCode();
+        this.description = errorCode.getDescription();
+    }
+
+    public BusinessException(ErrorCode errorCode, String description) {
+        super(errorCode.getMessage());
+        this.code = errorCode.getCode();
+        this.description = description;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+}
+
+```
+
+全局异常处理器
+
+```java
+/**
+ * 全局异常处理器
+ *
+ * @author siyumengi
+ */
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BusinessException.class)
+    public BaseResponse businessExceptionHandler(BusinessException e) {
+        log.error("businessException: " + e.getMessage(), e);
+        return ResultUtils.error(e.getCode(), e.getMessage(), e.getDescription());
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public BaseResponse runtimeExceptionHandler(RuntimeException e) {
+        log.error("runtimeException", e);
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, e.getMessage(), "");
+    }
+}
+
+```
+
+### 五月二十九日上午两节课小结
+
+总结以往的编写经验，可以得出 common，utils，config，exception 这四个包以后在开发新项目可以直接copy。
+
+开了 userController 的小头，编写了 注册的接口，下午争取能把 userController 的逻辑编写完，能写一下前台页面，好像还少了后台的管理页面。

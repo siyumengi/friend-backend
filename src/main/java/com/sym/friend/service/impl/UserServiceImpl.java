@@ -1,18 +1,18 @@
 package com.sym.friend.service.impl;
 
-import java.util.Date;
-
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sym.friend.common.ErrorCode;
 import com.sym.friend.exception.BusinessException;
 import com.sym.friend.model.domain.User;
+import com.sym.friend.model.dto.UserDto;
 import com.sym.friend.model.vo.UserSendMessage;
 import com.sym.friend.service.UserService;
 import com.sym.friend.mapper.UserMapper;
 import com.sym.friend.utils.ValidateCodeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -23,11 +23,13 @@ import org.springframework.util.DigestUtils;
 
 
 import javax.annotation.Resource;
-import java.util.Dictionary;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * @author siyumeng
@@ -115,7 +117,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (count > 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号重复，请重新填写");
         }
-        //6. 密码加密
+        //6. 密码加验
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
         //5. 保存用户
         User user = new User();
@@ -145,8 +147,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "email为空");
         }
         String subject = "friend 系统";
-        String code =  "";
-        if (StringUtils.isNoneEmpty(userEmail)){
+        String code = "";
+        if (StringUtils.isNoneEmpty(userEmail)) {
             //发送一个六位数的验证码,把验证码变成String类型
             code = ValidateCodeUtils.generateValidateCode(6).toString();
             String text = "【friend 系统】您好，您的验证码为：" + code + "，请在5分钟内使用";
@@ -177,6 +179,159 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             }
         }
         return true;
+    }
+
+    /**
+     * 用户登录
+     *
+     * @param userAccount  账户
+     * @param userPassword 密码
+     * @param request      req
+     * @return 脱敏后的用户
+     */
+    @Override
+    public UserDto userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+//        2. 参数校验
+//          1. 是否为空
+        if (StringUtils.isAllBlank(userAccount, userPassword)) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        //   2. 账户长度不少于 4 位
+        if (userAccount.length() < 4) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户长度小于 4 位，请重新填写");
+        }
+        //   3. 密码长度不少于 8 位
+        if (userPassword.length() < 8) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码短于 8 位，请重新填写");
+        }
+        //   4. 用户账号不能存在特殊字符
+        String validPattern = "[`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]";
+        Matcher matcher = Pattern.compile(validPattern).matcher(userAccount);
+        if (matcher.find()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账户存在特殊字符，请重新填写");
+        }
+//        3. 密码加盐
+        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
+//        4. 查表判断是否相同
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("userAccount", userAccount);
+        queryWrapper.eq("userPassword", encryptPassword);
+        User user = userMapper.selectOne(queryWrapper);
+//          1.用户是否存在
+        if (user == null) {
+            log.info("user login failed, userAccount cannot match userPassword");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//        5. 脱敏
+        UserDto userSafe = new UserDto();
+        BeanUtils.copyProperties(user, userSafe);
+//        6. 记录用户态
+        String redisKey = String.format(USER_LOGIN_STATE + userSafe.getId());
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        valueOperations.set(redisKey, userSafe, 30, TimeUnit.MINUTES);
+        request.getSession().setAttribute(USER_LOGIN_STATE, userSafe);
+//        7. 返回脱敏用户
+        return userSafe;
+    }
+
+    /**
+     * 用户退出
+     *
+     * @param id      登出用户 id
+     * @param request req
+     * @return 退出结果
+     */
+    @Override
+    public Boolean userLogout(String id, HttpServletRequest request) {
+        if (id == null || request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//      1. 删除 req
+        request.getSession().removeAttribute(USER_LOGIN_STATE);
+//      2. 删除 redis 缓存
+        String redisKey = String.format(USER_LOGIN_STATE + id);
+        return redisTemplate.delete(redisKey);
+    }
+
+    /**
+     * 当前用户
+     *
+     * @param id      登录用户 id
+     * @param request req
+     * @return 脱敏后的用户
+     */
+    @Override
+    public UserDto getCurrentUser(String id, HttpServletRequest request) {
+        if (id == null || request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//        1. 从缓存中取
+        String redisKey = String.format(USER_LOGIN_STATE + id);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        User currentUser = (User) valueOperations.get(redisKey);
+//        2. 是否存在
+        if (currentUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+//        3. 脱敏
+        UserDto userSafe = new UserDto();
+        BeanUtils.copyProperties(currentUser, userSafe);
+//        4. 返回脱敏后数据
+        return userSafe;
+    }
+
+    /**
+     * 更新用户信息
+     *
+     * @param user      用户信息
+     * @param currentId 更新用户信息的用户
+     * @param request   req
+     * @return 是否成功
+     */
+    @Override
+    public int updateUser(User user, String currentId, HttpServletRequest request) {
+        Long userId = user.getId();
+        if (userId <= 0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//   1. 校验参数
+//      1. userAccount 长度不小于 4 位
+        String userAccount = user.getUserAccount();
+        if (userAccount.length() < 4) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求长度小于 4 位");
+        }
+//      2. gender 不能设置其他值
+        Integer gender = user.getGender();
+        if (gender == null || (gender != 0 && gender != 1 && gender != 2)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请选择正确的性别");
+        }
+//      3. age 不能小于 0 不能超过 200
+        Integer age = user.getAge();
+        if (age == null || (age <= 0 || age >= 200)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正常年龄");
+        }
+//      4. 手机长度是否为 11 位
+        String phone = user.getPhone();
+        if (phone != null && phone.length() != 11) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的手机号码");
+        }
+//   2. 与旧数据相同就不更新
+        String redKey = String.format(USER_LOGIN_STATE + currentId);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        User currentUser = (User) valueOperations.get(redKey);
+        if (user == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//   3. 判断是谁更新用户
+        if (!isAdmin(user) && userId.equals(user.getId())){
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+//      1. 如果是管理员可以随意更改
+//      2. 如果是用户本身只能更改自己
+        return 0;
+    }
+
+    private boolean Admin(User user) {
     }
 
 }

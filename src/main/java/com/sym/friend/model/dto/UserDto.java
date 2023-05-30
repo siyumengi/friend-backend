@@ -1,20 +1,19 @@
-package com.sym.friend.model.domain;
+package com.sym.friend.model.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
 
-import lombok.Data;
-
 /**
- * 用户表
- *
- * @TableName user
+ * 用户登录
  */
-@TableName(value = "user")
 @Data
-public class User implements Serializable {
+public class UserDto implements Serializable {
+
     /**
      * 用户 ID
      */
@@ -26,10 +25,6 @@ public class User implements Serializable {
      */
     private String username;
 
-    /**
-     * 密码
-     */
-    private String userPassword;
 
     /**
      * 账号
@@ -86,11 +81,6 @@ public class User implements Serializable {
      */
     private Date updateTime;
 
-    /**
-     * 是否删除
-     */
-    @TableLogic
-    private Integer isDelete;
 
     /**
      * 个人介绍

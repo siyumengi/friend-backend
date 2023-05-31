@@ -9,6 +9,7 @@ import java.util.Date;
 
 /**
  * 用户更新
+ *
  * @author siyumeng
  */
 @Data
@@ -16,7 +17,7 @@ public class UserUpdateRequest {
     /**
      * 用户 ID
      */
-     @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
@@ -49,6 +50,12 @@ public class UserUpdateRequest {
      * 邮箱
      */
     private String email;
+
+
+    /**
+     * 用户角色 0 - 普通用户 1 - 管理员
+     */
+    private Integer userRole;
 
     /**
      * 状态 0 - 正常

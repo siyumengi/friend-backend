@@ -4,11 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sym.friend.common.ErrorCode;
 import com.sym.friend.exception.BusinessException;
+import com.sym.friend.mapper.UserMapper;
 import com.sym.friend.model.domain.User;
 import com.sym.friend.model.dto.UserDto;
+import com.sym.friend.model.request.UserForgetRequest;
 import com.sym.friend.model.vo.UserSendMessage;
 import com.sym.friend.service.UserService;
-import com.sym.friend.mapper.UserMapper;
 import com.sym.friend.utils.ValidateCodeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -21,14 +22,15 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.sym.friend.constant.UserConstant.ADMIN_ROLE;
 import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -243,13 +245,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public Boolean userLogout(String id, HttpServletRequest request) {
-        if (id == null || request == null) {
+        if (StringUtils.isEmpty(id) || request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 //      1. 删除 req
         request.getSession().removeAttribute(USER_LOGIN_STATE);
 //      2. 删除 redis 缓存
         String redisKey = String.format(USER_LOGIN_STATE + id);
+        log.info(redisKey);
         return redisTemplate.delete(redisKey);
     }
 
@@ -262,22 +265,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public UserDto getCurrentUser(String id, HttpServletRequest request) {
-        if (id == null || request == null) {
+        if (StringUtils.isEmpty(id) || request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 //        1. 从缓存中取
         String redisKey = String.format(USER_LOGIN_STATE + id);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-        User currentUser = (User) valueOperations.get(redisKey);
+        UserDto currentUser = (UserDto) valueOperations.get(redisKey);
 //        2. 是否存在
         if (currentUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN);
         }
 //        3. 脱敏
-        UserDto userSafe = new UserDto();
-        BeanUtils.copyProperties(currentUser, userSafe);
+//        UserDto userSafe = new UserDto();
+//        BeanUtils.copyProperties(currentUser, userSafe);
 //        4. 返回脱敏后数据
-        return userSafe;
+        return currentUser;
     }
 
     /**
@@ -291,7 +294,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public int updateUser(User user, String currentId, HttpServletRequest request) {
         Long userId = user.getId();
-        if (userId <= 0){
+        if (userId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 //   1. 校验参数
@@ -312,26 +315,118 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
 //      4. 手机长度是否为 11 位
         String phone = user.getPhone();
-        if (phone != null && phone.length() != 11) {
+        if (StringUtils.isNoneEmpty(phone) && phone.length() != 11) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的手机号码");
         }
 //   2. 与旧数据相同就不更新
         String redKey = String.format(USER_LOGIN_STATE + currentId);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-        User currentUser = (User) valueOperations.get(redKey);
-        if (user == null){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        UserDto currentUser = (UserDto) valueOperations.get(redKey);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不存在修改数据");
         }
 //   3. 判断是谁更新用户
-        if (!isAdmin(user) && userId.equals(user.getId())){
-            throw new BusinessException(ErrorCode.NO_AUTH);
+        if (!isAdmin(user)) {
+            assert currentUser != null;
+            if (!userId.equals(currentUser.getId())) {
+                throw new BusinessException(ErrorCode.NO_AUTH);
+            }
         }
 //      1. 如果是管理员可以随意更改
 //      2. 如果是用户本身只能更改自己
-        return 0;
+        User oldUser = userMapper.selectById(userId);
+        if (oldUser == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        int res = userMapper.updateById(user);
+        //        写入缓存
+        UserDto userSafe = new UserDto();
+        BeanUtils.copyProperties(user, userSafe);
+        String redisKey = String.format(USER_LOGIN_STATE + userId);
+        valueOperations.set(redisKey, user, 30, TimeUnit.MINUTES);
+        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        return res;
     }
 
-    private boolean Admin(User user) {
+    /**
+     * 是否为管理员
+     *
+     * @param request req
+     * @return 是否为管理员
+     */
+    public boolean isAdmin(HttpServletRequest request) {
+        UserDto loginUser = (UserDto) request.getSession().getAttribute(USER_LOGIN_STATE);
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * 是否为管理员
+     *
+     * @param loginUser 用户
+     * @return 是否为管理员
+     */
+    public boolean isAdmin(User loginUser) {
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * 用户密码更新
+     *
+     * @param userForgetRequest 用户密码更新
+     * @return 是否更新成功
+     */
+    @Override
+    public Boolean forget(UserForgetRequest userForgetRequest) {
+        String userAccount = userForgetRequest.getUserAccount();
+        String userPassword = userForgetRequest.getUserPassword();
+        String userEmail = userForgetRequest.getUserEmail();
+        String code = userForgetRequest.getCode();
+        if ((!Optional.ofNullable(userEmail).isPresent()) || (!Optional.ofNullable(userAccount).isPresent())
+                || (!Optional.ofNullable(userPassword).isPresent()) || !Optional.ofNullable(code).isPresent()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
+        }
+        if (userAccount.length() < 4) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        if (userPassword.length() < 8) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度小于 8 位，请重新填写");
+        }
+        String redKey = String.format("my:user:sendMessage:%s", userEmail);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        UserSendMessage sendMessage = (UserSendMessage) valueOperations.get(redKey);
+        if (!Optional.ofNullable(sendMessage).isPresent()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "验证码获取失败");
+        }
+        String sendMessageCode = sendMessage.getCode();
+        if (!sendMessageCode.equals(code)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "验证码错误");
+        }
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("userAccount", userAccount);
+        queryWrapper.eq("email", userEmail);
+        User user = userMapper.selectOne(queryWrapper);
+        if (!Optional.ofNullable(user).isPresent()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求用户不存在");
+        }
+        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
+        user.setUserPassword(encryptPassword);
+        int res = userMapper.updateById(user);
+        return res > 0;
+
+    }
+
+
+    /**
+     * 根据用户标签查询用户
+     *
+     * @param tags 标签
+     * @return 脱敏后的用户集合
+     */
+
+    @Override
+    public List<UserDto> searchUserByTags(List<String> tags) {
+
+        return null;
     }
 
 }

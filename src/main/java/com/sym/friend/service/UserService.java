@@ -3,9 +3,11 @@ package com.sym.friend.service;
 import com.sym.friend.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.sym.friend.model.dto.UserDto;
+import com.sym.friend.model.request.UserForgetRequest;
 import com.sym.friend.model.vo.UserSendMessage;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * @author siyumeng
@@ -69,4 +71,35 @@ public interface UserService extends IService<User> {
      * @return 是否成功
      */
     int updateUser(User user, String currentId, HttpServletRequest request);
+
+
+    /**
+     * 是否为管理员
+     *
+     * @param request req
+     * @return 是否为管理员
+     */
+    public boolean isAdmin(HttpServletRequest request) ;
+
+    /**
+     * 是否为管理员
+     *
+     * @param loginUser 用户
+     * @return 是否为管理员
+     */
+    public boolean isAdmin(User loginUser);
+
+    /**
+     * 用户更新密码
+     * @param userForgetRequest 用户密码更新
+     * @return 是否更新成功
+     */
+    Boolean forget(UserForgetRequest userForgetRequest);
+
+    /**
+     * 根据用户标签查询用户
+     * @param tags 标签
+     * @return 脱敏后的用户集合
+     */
+    List<UserDto> searchUserByTags(List<String> tags);
 }

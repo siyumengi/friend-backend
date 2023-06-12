@@ -37,7 +37,7 @@ import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
  */
 @RestController
 @RequestMapping("/user")
-@CrossOrigin(origins = {"http://localhost:3000/"})
+@CrossOrigin(origins = {"http://localhost:3000/" ,"http://localhost:3001/"})
 @Slf4j
 public class UserController {
     @Resource
@@ -108,7 +108,7 @@ public class UserController {
      * @param request req
      * @return 退出结果
      */
-    @PostMapping("/logout")
+    @GetMapping("/logout")
     public BaseResponse<Boolean> userLogout(String id, HttpServletRequest request) {
         if (request == null || StringUtils.isEmpty(id)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -142,7 +142,7 @@ public class UserController {
      * @return 是否成功
      */
     @PostMapping("/update")
-    public BaseResponse<Integer> updateUser(@RequestBody UserUpdateRequest userUpdateRequest, String currentId, HttpServletRequest request) {
+    public BaseResponse<Integer> updateUser(@RequestBody UserUpdateRequest userUpdateRequest,@RequestParam String currentId, HttpServletRequest request) {
         if (userUpdateRequest == null || currentId == null || request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -175,7 +175,7 @@ public class UserController {
      * @return 是否删除成功
      */
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteUser(@RequestBody long id, HttpServletRequest request) {
+    public BaseResponse<Boolean> deleteUser(@RequestParam("id") long id, HttpServletRequest request) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -196,7 +196,7 @@ public class UserController {
      */
     @GetMapping("/search")
     public BaseResponse<List<UserDto>> searchUsers(String username, HttpServletRequest request) {
-        if (!userService.isAdmin(request)) {
+        if (!userService.isAdmin(request))  {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -225,7 +225,7 @@ public class UserController {
         }
         log.info(tags.toString());
         List<UserDto> users =  userService.searchUserByTags(tags);
-
+        return  null;
     }
 
 }

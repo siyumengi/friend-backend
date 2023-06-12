@@ -294,7 +294,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public int updateUser(User user, String currentId, HttpServletRequest request) {
         Long userId = user.getId();
-        if (userId <= 0) {
+        if (userId == null || userId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 //   1. 校验参数
@@ -319,18 +319,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的手机号码");
         }
 //   2. 与旧数据相同就不更新
-        String redKey = String.format(USER_LOGIN_STATE + currentId);
+        String redisKey = String.format(USER_LOGIN_STATE + currentId);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-        UserDto currentUser = (UserDto) valueOperations.get(redKey);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不存在修改数据");
+        UserDto currentUser = (UserDto) valueOperations.get(redisKey);
+        if (currentUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
         }
 //   3. 判断是谁更新用户
-        if (!isAdmin(user)) {
-            assert currentUser != null;
-            if (!userId.equals(currentUser.getId())) {
-                throw new BusinessException(ErrorCode.NO_AUTH);
-            }
+        if (!isAdmin(currentUser) && !userId.equals(currentUser.getId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
         }
 //      1. 如果是管理员可以随意更改
 //      2. 如果是用户本身只能更改自己
@@ -342,8 +339,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         //        写入缓存
         UserDto userSafe = new UserDto();
         BeanUtils.copyProperties(user, userSafe);
-        String redisKey = String.format(USER_LOGIN_STATE + userId);
-        valueOperations.set(redisKey, user, 30, TimeUnit.MINUTES);
+         redisKey = String.format(USER_LOGIN_STATE + userId);
+        valueOperations.set(redisKey, userSafe, 30, TimeUnit.MINUTES);
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
         return res;
     }
@@ -366,6 +363,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return 是否为管理员
      */
     public boolean isAdmin(User loginUser) {
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+    }
+    public boolean isAdmin(UserDto loginUser) {
         return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
     }
 

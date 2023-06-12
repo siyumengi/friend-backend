@@ -17,14 +17,16 @@ import java.util.Date;
 public class UserLoginRequest implements Serializable {
 
     /**
+     * 账号
+     */
+    private String userAccount;
+
+
+    /**
      * 密码
      */
     private String userPassword;
 
-    /**
-     * 账号
-     */
-    private String userAccount;
 
 
     @TableField(exist = false)

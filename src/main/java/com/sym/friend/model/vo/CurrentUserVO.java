@@ -6,7 +6,7 @@ import java.io.Serializable;
 
 /**
  * 用户信息封装类
- * @author 22603
+ * @author siyumeng
  */
 @Data
 public class CurrentUserVO implements Serializable {

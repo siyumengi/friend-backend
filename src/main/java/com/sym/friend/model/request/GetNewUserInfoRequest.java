@@ -6,7 +6,7 @@ import java.io.Serializable;
 
 /**
  * 用户加入队伍请求体
- * @author 22603
+ * @author siyumeng
  */
 @Data
 public class GetNewUserInfoRequest implements Serializable {

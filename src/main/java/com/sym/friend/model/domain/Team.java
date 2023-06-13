@@ -1,9 +1,7 @@
 package com.sym.friend.model.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
+
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
@@ -34,17 +32,17 @@ public class Team implements Serializable {
     /**
      * 最大人数
      */
-    private Integer maxnum;
+    private Integer maxNum;
 
     /**
      * 过期时间
      */
-    private Date expiretime;
+    private Date expireTime;
 
     /**
-     * 用户id（队长 id）
+     * 用户id
      */
-    private Long userid;
+    private Long userId;
 
     /**
      * 0 - 公开，1 - 私有，2 - 加密
@@ -59,17 +57,24 @@ public class Team implements Serializable {
     /**
      * 创建时间
      */
-    private Date createtime;
+    private Date createTime;
 
     /**
-     * 
+     *
      */
-    private Date updatetime;
+    private Date updateTime;
 
     /**
      * 是否删除
      */
-    private Integer isdelete;
+    @TableLogic
+    private Integer isDelete;
+
+
+    /**
+     * 队伍头像
+     */
+    private String avatarUrl;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

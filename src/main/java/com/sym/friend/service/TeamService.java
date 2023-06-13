@@ -2,6 +2,7 @@ package com.sym.friend.service;
 
 import com.sym.friend.model.domain.Team;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.sym.friend.model.dto.UserDto;
 
 /**
 * @author siyumeng
@@ -10,4 +11,13 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface TeamService extends IService<Team> {
 
+
+    /**
+     * 创建队伍
+     *
+     * @param team
+     * @param loginUser
+     * @return
+     */
+    long addTeam(Team team, UserDto loginUser);
 }

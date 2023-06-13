@@ -297,26 +297,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userId == null || userId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-//   1. 校验参数
-//      1. userAccount 长度不小于 4 位
-        String userAccount = user.getUserAccount();
-        if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求长度小于 4 位");
+////   1. 校验参数
+////      1. userAccount 长度不小于 4 位
+//        String userAccount = user.getUserAccount();
+//        if (userAccount.length() < 4) {
+//            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求长度小于 4 位");
+//        }
+////      2. gender 不能设置其他值
+//        Integer gender = user.getGender();
+//        if (gender == null || (gender != 0 && gender != 1 && gender != 2)) {
+//            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请选择正确的性别");
+//        }
+////      3. age 不能小于 0 不能超过 200
+//        Integer age = user.getAge();
+//        if (age == null || (age <= 0 || age >= 200)) {
+//            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正常年龄");
+//        }
+////      4. 手机长度是否为 11 位
+//        String phone = user.getPhone();
+//        if (StringUtils.isNoneEmpty(phone) && phone.length() != 11) {
+//            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的手机号码");
+//        }
+        // 如果用户没有传任何要更新的值，就直接报错，不用执行 update 语句
+        if (user == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不存在修改数据");
         }
-//      2. gender 不能设置其他值
-        Integer gender = user.getGender();
-        if (gender == null || (gender != 0 && gender != 1 && gender != 2)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请选择正确的性别");
-        }
-//      3. age 不能小于 0 不能超过 200
-        Integer age = user.getAge();
-        if (age == null || (age <= 0 || age >= 200)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正常年龄");
-        }
-//      4. 手机长度是否为 11 位
-        String phone = user.getPhone();
-        if (StringUtils.isNoneEmpty(phone) && phone.length() != 11) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的手机号码");
+        log.info(user.toString());
+        if (user.getPhone() != null && user.getPhone().length() != 11) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "电话长度过长或过短");
         }
 //   2. 与旧数据相同就不更新
         String redisKey = String.format(USER_LOGIN_STATE + currentId);
@@ -329,6 +337,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (!isAdmin(currentUser) && !userId.equals(currentUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
+
 //      1. 如果是管理员可以随意更改
 //      2. 如果是用户本身只能更改自己
         User oldUser = userMapper.selectById(userId);

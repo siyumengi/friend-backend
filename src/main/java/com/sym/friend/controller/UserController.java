@@ -2,6 +2,7 @@ package com.sym.friend.controller;
 
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sym.friend.common.BaseResponse;
 import com.sym.friend.common.ErrorCode;
 import com.sym.friend.common.ResultUtils;
@@ -12,6 +13,7 @@ import com.sym.friend.model.request.UserForgetRequest;
 import com.sym.friend.model.request.UserLoginRequest;
 import com.sym.friend.model.request.UserRegisterRequest;
 import com.sym.friend.model.request.UserUpdateRequest;
+import com.sym.friend.model.vo.TagVo;
 import com.sym.friend.model.vo.UserSendMessage;
 import com.sym.friend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +27,10 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
@@ -37,7 +42,7 @@ import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
  */
 @RestController
 @RequestMapping("/user")
-@CrossOrigin(origins = {"http://localhost:3000/" ,"http://localhost:3001/"})
+@CrossOrigin(origins = {"http://localhost:3000/", "http://localhost:3001/"})
 @Slf4j
 public class UserController {
     @Resource
@@ -142,7 +147,7 @@ public class UserController {
      * @return 是否成功
      */
     @PostMapping("/update")
-    public BaseResponse<Integer> updateUser(@RequestBody UserUpdateRequest userUpdateRequest,@RequestParam String currentId, HttpServletRequest request) {
+    public BaseResponse<Integer> updateUser(@RequestBody UserUpdateRequest userUpdateRequest, String currentId, HttpServletRequest request) {
         if (userUpdateRequest == null || currentId == null || request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -158,7 +163,7 @@ public class UserController {
      * @param userForgetRequest 用户密码更新
      * @return 是否更新成功
      */
-    @PostMapping("/forget")
+    @PutMapping("/forget")
     public BaseResponse<Boolean> forget(@RequestBody UserForgetRequest userForgetRequest) {
         if (userForgetRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -190,13 +195,14 @@ public class UserController {
 
     /**
      * 根据昵称查询用户
+     *
      * @param username 用户昵称
-     * @param request req
+     * @param request  req
      * @return 脱敏后的用户集合
      */
     @GetMapping("/search")
     public BaseResponse<List<UserDto>> searchUsers(String username, HttpServletRequest request) {
-        if (!userService.isAdmin(request))  {
+        if (!userService.isAdmin(request)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -215,17 +221,109 @@ public class UserController {
 
     /**
      * 根据标签查询用户
+     *
      * @param tags 标签
      * @return 脱敏后的用户集合
      */
     @GetMapping("/search/tags")
-    public BaseResponse<List<UserDto>> searchUserByTags(@RequestBody(required = false) List<String> tags){
-        if (CollectionUtils.isEmpty(tags)){
+    public BaseResponse<List<UserDto>> searchUserByTags(@RequestBody(required = false) List<String> tags) {
+        if (CollectionUtils.isEmpty(tags)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         log.info(tags.toString());
-        List<UserDto> users =  userService.searchUserByTags(tags);
-        return  null;
+        List<UserDto> users = userService.searchUserByTags(tags);
+        return null;
+    }
+
+    /**
+     * 分页查询
+     *
+     * @param currentId 当前用户id
+     * @param pageSize  页大小
+     * @param pageNum   第几页
+     * @param request
+     * @return
+     */
+    @GetMapping("/recommend")
+    public BaseResponse<Page<User>> recommendUsers(String currentId, long pageSize, long pageNum, HttpServletRequest request) {
+//        获取当前登录用户信息
+        String userKey = String.format(USER_LOGIN_STATE + currentId);
+        log.info(userKey);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        UserDto loginUser = (UserDto) valueOperations.get(userKey);
+//        设计字符串id作为该用户标识
+        log.info(loginUser.getId() + "userid");
+        String redisKey = String.format("my:user:recommend:%s", loginUser.getId());
+        // 如果有缓存，直接读缓存
+        Page<User> userPage = null;
+
+        // 无缓存，查数据库
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.ne("id", loginUser.getId());
+        userPage = userService.page(new Page<>(pageNum, pageSize), queryWrapper);
+        log.info("pageNum:" + pageNum);
+        log.info("pageSize:" + pageSize);
+        log.info("userPage:" + userPage);
+        return ResultUtils.success(userPage);
+    }
+
+    /**
+     * 获取当前用户
+     *
+     * @param id 当前用户id
+     * @return
+     */
+    @GetMapping("/getNewUserInfo")
+    public BaseResponse<User> getNewUserInfo(String id) {
+        log.info("id:" + id);
+        if (CollectionUtils.isEmpty(Collections.singleton(id))) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User user = userService.getById(id);
+        return ResultUtils.success(user);
+    }
+
+    /**
+     * 获取最匹配的用户
+     *
+     * @param num
+     * @param request
+     * @return
+     */
+    @GetMapping("/match")
+    public BaseResponse<List<User>> matchUsers(long num,String currentId,  HttpServletRequest request) throws IOException {
+        if (num <= 0 || num > 20) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        log.info("id:"+currentId);
+        String redisKey = String.format(USER_LOGIN_STATE+currentId);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        User currentUser = (User) valueOperations.get(redisKey);
+        String redisMatchKey = String.format("my:user:match:%s", currentUser.getId());
+        // 如果有缓存，直接读缓存
+        List<User> matchUsers=null;
+        if (redisKey!=null){
+            matchUsers = (List<User>) valueOperations.get(redisMatchKey);
+            if (matchUsers != null) {
+                return ResultUtils.success(matchUsers);
+            }
+        }
+        List<User> users = userService.matchUsers(num, currentUser);
+        try {
+            valueOperations.set(redisMatchKey, users, 3, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.error("redis set key error", e);
+        }
+
+        return ResultUtils.success(users);
+    }
+
+
+    @GetMapping("/get/tags")
+    public BaseResponse<TagVo> getTags(String currentId, HttpServletRequest request) {
+        TagVo tagVo = userService.getTags(currentId,request);
+        log.info(tagVo.toString());
+        return ResultUtils.success(tagVo);
     }
 
 }

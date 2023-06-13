@@ -226,13 +226,13 @@ public class UserController {
      * @return 脱敏后的用户集合
      */
     @GetMapping("/search/tags")
-    public BaseResponse<List<UserDto>> searchUserByTags(@RequestBody(required = false) List<String> tags) {
+    public BaseResponse<List<UserDto>> searchUserByTags(@RequestParam(required = false , name = "tagNameList") List<String> tags) {
         if (CollectionUtils.isEmpty(tags)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         log.info(tags.toString());
         List<UserDto> users = userService.searchUsersByTags(tags);
-        return null;
+        return ResultUtils.success(users);
     }
 
     /**

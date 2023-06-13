@@ -9,10 +9,12 @@ import com.sym.friend.exception.BusinessException;
 import com.sym.friend.mapper.UserMapper;
 import com.sym.friend.model.domain.User;
 import com.sym.friend.model.dto.UserDto;
+import com.sym.friend.model.enums.ListTypeEnum;
 import com.sym.friend.model.request.UserForgetRequest;
 import com.sym.friend.model.vo.TagVo;
 import com.sym.friend.model.vo.UserSendMessage;
 import com.sym.friend.service.UserService;
+import com.sym.friend.utils.AllUtils;
 import com.sym.friend.utils.ValidateCodeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -38,6 +40,8 @@ import java.util.stream.Collectors;
 
 import static com.sym.friend.constant.UserConstant.ADMIN_ROLE;
 import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
+import static com.sym.friend.model.enums.ListTypeEnum.ENGLISH;
+import static com.sym.friend.model.enums.ListTypeEnum.MIXEECAE;
 
 /**
  * @author siyumeng
@@ -649,11 +653,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         List<User> userList = userMapper.selectList(queryWrapper);
         Gson gson = new Gson();
         // 2. 在内存中判断是否包含要求的标签
-        return userList.stream().filter(user -> {
+        List<UserDto> userDtoList = userList.stream().filter(user -> {
             String tagsStr = user.getTags();
             Set<String> tempTagNameSet = gson.fromJson(tagsStr, new TypeToken<Set<String>>() {
             }.getType());
             tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
+            log.debug("User [{}] tag set: {}", user.getId(), tempTagNameSet);
+
             for (String tagName : tagNameList) {
                 if (!tempTagNameSet.contains(tagName)) {
                     return false;
@@ -665,6 +671,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             BeanUtils.copyProperties(user, userDto);
             return userDto;
         }).collect(Collectors.toList());
+        return userDtoList;
     }
 
 }

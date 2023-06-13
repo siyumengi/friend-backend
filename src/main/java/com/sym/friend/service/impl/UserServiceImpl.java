@@ -2,17 +2,21 @@ package com.sym.friend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.sym.friend.common.ErrorCode;
 import com.sym.friend.exception.BusinessException;
 import com.sym.friend.mapper.UserMapper;
 import com.sym.friend.model.domain.User;
 import com.sym.friend.model.dto.UserDto;
 import com.sym.friend.model.request.UserForgetRequest;
+import com.sym.friend.model.vo.TagVo;
 import com.sym.friend.model.vo.UserSendMessage;
 import com.sym.friend.service.UserService;
 import com.sym.friend.utils.ValidateCodeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.util.Pair;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -20,15 +24,17 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.List;
-import java.util.Optional;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.sym.friend.constant.UserConstant.ADMIN_ROLE;
 import static com.sym.friend.constant.UserConstant.USER_LOGIN_STATE;
@@ -348,7 +354,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         //        写入缓存
         UserDto userSafe = new UserDto();
         BeanUtils.copyProperties(user, userSafe);
-         redisKey = String.format(USER_LOGIN_STATE + userId);
+        redisKey = String.format(USER_LOGIN_STATE + userId);
         valueOperations.set(redisKey, userSafe, 30, TimeUnit.MINUTES);
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
         return res;
@@ -374,6 +380,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     public boolean isAdmin(User loginUser) {
         return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
     }
+
+
+    @Override
+    public User getLoginUser(HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (userObj == null) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+        return (User) userObj;
+    }
+
+
     public boolean isAdmin(UserDto loginUser) {
         return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
     }
@@ -424,18 +445,226 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     }
 
+    @Override
+    public List<UserDto> matchUsers(long num, UserDto loginUser) throws IOException {
+        BeanUtils.copyProperties(this.getById(loginUser.getId()), loginUser);
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.select("id", "tags");
+        queryWrapper.isNotNull("tags");
+        List<User> userList = this.list(queryWrapper);
+        String tags = loginUser.getTags();
+        BeanUtils.copyProperties(this.getById(loginUser.getId()), loginUser);
+        Gson gson = new Gson();
+        List<String> tagList = gson.fromJson(tags, new TypeToken<List<String>>() {
+        }.getType());
+        log.info("tagList:" + tagList.toString());
+        // 用户列表的下标 => 相似度
+        List<Pair<User, Double>> list = new ArrayList<>();
+        // 依次计算所有用户和当前用户的相似度
+        for (int i = 0; i < userList.size(); i++) {
+            User user = userList.get(i);
+            String userTags = user.getTags();
+            // 无标签或者为当前用户自己
+            if (StringUtils.isBlank(userTags) || user.getId() == loginUser.getId()) {
+                continue;
+            }
+            List<String> userTagList = gson.fromJson(userTags, new TypeToken<List<String>>() {
+            }.getType());
+            // 计算分数
+            double distance = sorce(tagList, userTagList);
+            list.add(new Pair<>(user, distance));
+        }
+        // 按编辑距离由小到大排序
+        List<Pair<User, Double>> topUserPairList = list.stream()
+                .sorted((o1, o2) -> Double.compare(o2.getValue(), o1.getValue()))
+                .limit(num)
+                .collect(Collectors.toList());
+        // 原本顺序的 userId 列表
+        List<Long> userIdList = topUserPairList.stream().map(pair -> pair.getKey().getId()).collect(Collectors.toList());
+        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+        userQueryWrapper.in("id", userIdList);
+        // 1, 3, 2
+        // User1、User2、User3
+        // 1 => User1, 2 => User2, 3 => User3
+        Map<Long, List<UserDto>> userIdUserListMap = this.list(userQueryWrapper)
+                .stream()
+                .map(user -> {
+                    UserDto userDto = new UserDto();
+                    BeanUtils.copyProperties(user, userDto);
+                    return userDto;
+                })
+                .collect(Collectors.groupingBy(UserDto::getId));
+        List<UserDto> finalUserList = new ArrayList<>();
+        for (Long userId : userIdList) {
+            finalUserList.add(userIdUserListMap.get(userId).get(0));
+        }
+        return finalUserList;
+    }
+
+    @Override
+    public TagVo getTags(String id, HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        TagVo tagVo = new TagVo();
+        log.info("id:" + id);
+        String redisKey = String.format(USER_LOGIN_STATE + id);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        UserDto currentUser = (UserDto) valueOperations.get(redisKey);
+        User userById = this.getById(currentUser.getId());
+        String OldTags = userById.getTags();
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.isNotNull("tags");
+        List<User> users = this.list(queryWrapper);
+        Map<String, Integer> map = new HashMap<>();
+        Gson gson = new Gson();
+        log.info(OldTags);
+        List<String> oldTags = gson.fromJson(OldTags, new TypeToken<List<String>>() {
+        }.getType());
+        log.info(oldTags.toString() + "");
+        for (User user : users) {
+            String Tags = user.getTags();
+            List<String> list = Arrays.asList(Tags);
+            if (list == null) {
+                continue;
+            }
+            List<String> tagList = gson.fromJson(Tags, new TypeToken<List<String>>() {
+            }.getType());
+            if (tagList != null) {
+                for (String tag : tagList) {
+                    if (map.get(tag) == null) {
+                        map.put(tag, 1);
+                    } else {
+                        map.put(tag, map.get(tag) + 1);
+                    }
+                }
+            }
+        }
+        Map<Integer, List<String>> Map = new TreeMap<>(new Comparator<Integer>() {
+            @Override
+            public int compare(Integer key1, Integer key2) {
+                //降序排序
+                return key2.compareTo(key1);
+            }
+        });
+        map.forEach((value, key) -> {
+            if (Map.size() == 0) {
+                Map.put(key, Arrays.asList(value));
+            } else if (Map.get(key) == null) {
+                Map.put(key, Arrays.asList(value));
+            } else {
+                List<String> list = new ArrayList(Map.get(key));
+                list.add(value);
+                Map.put(key, list);
+            }
+        });
+        Set<String> set = new HashSet<>();
+        for (Map.Entry<Integer, List<String>> entry : Map.entrySet()) {
+
+            log.info("set.size():" + set.size());
+            List<String> value = entry.getValue();
+            if (oldTags == null) {
+                for (String tag : value) {
+                    set.add(tag);
+                    if (set.size() >= 20) {
+                        break;
+                    }
+                }
+            }
+            for (String tag : value) {
+                if (!oldTags.contains(tag)) {
+                    set.add(tag);
+                    if (set.size() >= 20) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        List<String> RecommendTags = new ArrayList<String>(set);
+        log.info("RecommendTags:" + RecommendTags);
+        tagVo.setOldTags(oldTags);
+        tagVo.setRecommendTags(RecommendTags);
+        return tagVo;
+    }
+
+    public double sorce(List<String> list1, List<String> list2) throws IOException {
+        List<String> resultList1 = list1.stream().map(String::toLowerCase).collect(Collectors.toList());
+        List<String> resultList2 = list2.stream().map(String::toLowerCase).collect(Collectors.toList());
+        int strType = AllUtils.getStrType(resultList1);
+        int type = AllUtils.getStrType(resultList2);
+        ListTypeEnum enumByValue = ListTypeEnum.getEnumByValue(strType);
+        ListTypeEnum enumByValue1 = ListTypeEnum.getEnumByValue(type);
+        if (enumByValue == MIXEECAE) {
+            resultList1 = AllUtils.tokenize(resultList1);
+        }
+        if (enumByValue1 == MIXEECAE) {
+            resultList2 = AllUtils.tokenize(resultList2);
+        }
+        double ikSorce = 0;
+        if (enumByValue != ENGLISH && enumByValue1 != ENGLISH) {
+            List<String> resultList3 = list1.stream().map(String::toLowerCase).collect(Collectors.toList());
+            List<String> resultList4 = list2.stream().map(String::toLowerCase).collect(Collectors.toList());
+            List<String> quotedList1 = resultList3.stream()
+                    .map(str -> "\"" + str + "\"")
+                    .collect(Collectors.toList());
+            List<String> quotedList2 = resultList4.stream()
+                    .map(str -> "\"" + str + "\"")
+                    .collect(Collectors.toList());
+            String tags1 = AllUtils.collectChineseChars(quotedList1);
+            List<String> Ls = AllUtils.analyzeText(tags1);
+            String tags2 = AllUtils.collectChineseChars(quotedList2);
+            List<String> Ls2 = AllUtils.analyzeText(tags2);
+            ikSorce = AllUtils.calculateJaccardSimilarity(Ls, Ls2);
+        }
+        int EditDistanceSorce = AllUtils.calculateEditDistance(resultList1, resultList2);
+        double maxEditDistance = Math.max(resultList1.size(), resultList2.size());
+        double EditDistance = 1 - EditDistanceSorce / maxEditDistance;
+        double JaccardSorce = AllUtils.calculateJaccardSimilarity(resultList1, resultList2);
+        double similaritySorce = AllUtils.cosineSimilarity(resultList1, resultList2);
+        /**
+         * 编辑距离 权重为0.5
+         * Jaccard相似度算法（ik分词后使用Jaccard相似度算法） 权重为0.3
+         *  余弦相似度 权重为0.2
+         *
+         */
+        double totalSorce = EditDistance * 0.5 + JaccardSorce * 0.3 + similaritySorce * 0.2 + ikSorce * 0.3;
+        return totalSorce;
+    }
 
     /**
      * 根据用户标签查询用户
      *
-     * @param tags 标签
+     * @param tagNameList 标签
      * @return 脱敏后的用户集合
      */
 
     @Override
-    public List<UserDto> searchUserByTags(List<String> tags) {
-
-        return null;
+    public List<UserDto> searchUsersByTags(List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 1. 先查询所有用户
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        List<User> userList = userMapper.selectList(queryWrapper);
+        Gson gson = new Gson();
+        // 2. 在内存中判断是否包含要求的标签
+        return userList.stream().filter(user -> {
+            String tagsStr = user.getTags();
+            Set<String> tempTagNameSet = gson.fromJson(tagsStr, new TypeToken<Set<String>>() {
+            }.getType());
+            tempTagNameSet = Optional.ofNullable(tempTagNameSet).orElse(new HashSet<>());
+            for (String tagName : tagNameList) {
+                if (!tempTagNameSet.contains(tagName)) {
+                    return false;
+                }
+            }
+            return true;
+        }).map(user -> {
+            UserDto userDto = new UserDto();
+            BeanUtils.copyProperties(user, userDto);
+            return userDto;
+        }).collect(Collectors.toList());
     }
 
 }

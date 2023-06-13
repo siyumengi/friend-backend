@@ -4,9 +4,11 @@ import com.sym.friend.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.sym.friend.model.dto.UserDto;
 import com.sym.friend.model.request.UserForgetRequest;
+import com.sym.friend.model.vo.TagVo;
 import com.sym.friend.model.vo.UserSendMessage;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -57,7 +59,8 @@ public interface UserService extends IService<User> {
 
     /**
      * 当前用户
-     * @param id 登录用户 id
+     *
+     * @param id      登录用户 id
      * @param request req
      * @return 脱敏后的用户
      */
@@ -65,9 +68,10 @@ public interface UserService extends IService<User> {
 
     /**
      * 更新用户信息
-     * @param user 用户信息
+     *
+     * @param user      用户信息
      * @param currentId 更新用户信息的用户
-     * @param request req
+     * @param request   req
      * @return 是否成功
      */
     int updateUser(User user, String currentId, HttpServletRequest request);
@@ -79,7 +83,7 @@ public interface UserService extends IService<User> {
      * @param request req
      * @return 是否为管理员
      */
-    public boolean isAdmin(HttpServletRequest request) ;
+    public boolean isAdmin(HttpServletRequest request);
 
     /**
      * 是否为管理员
@@ -89,17 +93,30 @@ public interface UserService extends IService<User> {
      */
     public boolean isAdmin(User loginUser);
 
+
+
     /**
-     * 用户更新密码
-     * @param userForgetRequest 用户密码更新
-     * @return 是否更新成功
+     * 获取当前登录用户信息
+     * @return
      */
+    User getLoginUser(HttpServletRequest request);
+
+    /**
+     * 根据标签搜索用户
+     *
+     * @param tagNameList
+     * @return
+     */
+    List<UserDto> searchUsersByTags(List<String> tagNameList);
+
     Boolean forget(UserForgetRequest userForgetRequest);
 
     /**
-     * 根据用户标签查询用户
-     * @param tags 标签
-     * @return 脱敏后的用户集合
+     * 匹配用户
+     * @param num
+     * @param loginUser
+     * @return
      */
-    List<UserDto> searchUserByTags(List<String> tags);
+    List<UserDto> matchUsers(long num, UserDto loginUser) throws IOException;
+    TagVo getTags(String id, HttpServletRequest request);
 }

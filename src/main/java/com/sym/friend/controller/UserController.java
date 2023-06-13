@@ -231,7 +231,7 @@ public class UserController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         log.info(tags.toString());
-        List<UserDto> users = userService.searchUserByTags(tags);
+        List<UserDto> users = userService.searchUsersByTags(tags);
         return null;
     }
 
@@ -291,31 +291,31 @@ public class UserController {
      * @return
      */
     @GetMapping("/match")
-    public BaseResponse<List<User>> matchUsers(long num,String currentId,  HttpServletRequest request) throws IOException {
+    public BaseResponse<List<UserDto>> matchUsers(long num,String currentId,  HttpServletRequest request) throws IOException {
         if (num <= 0 || num > 20) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         log.info("id:"+currentId);
         String redisKey = String.format(USER_LOGIN_STATE+currentId);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-        User currentUser = (User) valueOperations.get(redisKey);
+        UserDto currentUser = (UserDto) valueOperations.get(redisKey);
         String redisMatchKey = String.format("my:user:match:%s", currentUser.getId());
         // 如果有缓存，直接读缓存
-        List<User> matchUsers=null;
+        List<UserDto> matchUsers=null;
         if (redisKey!=null){
-            matchUsers = (List<User>) valueOperations.get(redisMatchKey);
+            matchUsers = (List<UserDto>) valueOperations.get(redisMatchKey);
             if (matchUsers != null) {
                 return ResultUtils.success(matchUsers);
             }
         }
-        List<User> users = userService.matchUsers(num, currentUser);
+        List<UserDto> users = userService.matchUsers(num, currentUser);
         try {
             valueOperations.set(redisMatchKey, users, 3, TimeUnit.HOURS);
         } catch (Exception e) {
             log.error("redis set key error", e);
         }
-
         return ResultUtils.success(users);
+
     }
 
 

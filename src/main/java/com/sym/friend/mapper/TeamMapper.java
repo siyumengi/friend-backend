@@ -2,6 +2,10 @@ package com.sym.friend.mapper;
 
 import com.sym.friend.model.domain.Team;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.sym.friend.model.domain.User;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
 * @author siyumeng
@@ -11,6 +15,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface TeamMapper extends BaseMapper<Team> {
 
+    List<User> SelectUsers(@Param("teamId") long teamId);
 }
 
 

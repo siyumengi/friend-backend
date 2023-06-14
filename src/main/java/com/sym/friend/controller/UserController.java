@@ -184,7 +184,7 @@ public class UserController {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        if (!userService.isAdmin(request)) {
+        if (userService.isAdmin(request)) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
         String redKey = String.format(USER_LOGIN_STATE + id);
@@ -202,7 +202,7 @@ public class UserController {
      */
     @GetMapping("/search")
     public BaseResponse<List<UserDto>> searchUsers(String username, HttpServletRequest request) {
-        if (!userService.isAdmin(request)) {
+        if (userService.isAdmin(request)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
@@ -226,7 +226,7 @@ public class UserController {
      * @return 脱敏后的用户集合
      */
     @GetMapping("/search/tags")
-    public BaseResponse<List<UserDto>> searchUserByTags(@RequestParam(required = false , name = "tagNameList") List<String> tags) {
+    public BaseResponse<List<UserDto>> searchUserByTags(@RequestParam(required = false, name = "tagNameList") List<String> tags) {
         if (CollectionUtils.isEmpty(tags)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -291,18 +291,18 @@ public class UserController {
      * @return
      */
     @GetMapping("/match")
-    public BaseResponse<List<UserDto>> matchUsers(long num,String currentId,  HttpServletRequest request) throws IOException {
+    public BaseResponse<List<UserDto>> matchUsers(long num, String currentId, HttpServletRequest request) throws IOException {
         if (num <= 0 || num > 20) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        log.info("id:"+currentId);
-        String redisKey = String.format(USER_LOGIN_STATE+currentId);
+        log.info("id:" + currentId);
+        String redisKey = String.format(USER_LOGIN_STATE + currentId);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         UserDto currentUser = (UserDto) valueOperations.get(redisKey);
         String redisMatchKey = String.format("my:user:match:%s", currentUser.getId());
         // 如果有缓存，直接读缓存
-        List<UserDto> matchUsers=null;
-        if (redisKey!=null){
+        List<UserDto> matchUsers = null;
+        if (redisKey != null) {
             matchUsers = (List<UserDto>) valueOperations.get(redisMatchKey);
             if (matchUsers != null) {
                 return ResultUtils.success(matchUsers);
@@ -321,7 +321,7 @@ public class UserController {
 
     @GetMapping("/get/tags")
     public BaseResponse<TagVo> getTags(String currentId, HttpServletRequest request) {
-        TagVo tagVo = userService.getTags(currentId,request);
+        TagVo tagVo = userService.getTags(currentId, request);
         log.info(tagVo.toString());
         return ResultUtils.success(tagVo);
     }

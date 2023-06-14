@@ -93,13 +93,14 @@ public interface UserService extends IService<User> {
      */
     public boolean isAdmin(User loginUser);
 
-
+    public boolean isAdmin(UserDto loginUser);
 
     /**
      * 获取当前登录用户信息
+     *
      * @return
      */
-    User getLoginUser(HttpServletRequest request);
+    UserDto getLoginUser(HttpServletRequest request);
 
     /**
      * 根据标签搜索用户
@@ -113,10 +114,12 @@ public interface UserService extends IService<User> {
 
     /**
      * 匹配用户
+     *
      * @param num
      * @param loginUser
      * @return
      */
     List<UserDto> matchUsers(long num, UserDto loginUser) throws IOException;
+
     TagVo getTags(String id, HttpServletRequest request);
 }

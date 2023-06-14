@@ -344,7 +344,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.NOT_LOGIN);
         }
 //   3. 判断是谁更新用户
-        if (!isAdmin(currentUser) && !userId.equals(currentUser.getId())) {
+        if (isAdmin(currentUser) && !userId.equals(currentUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
 
@@ -372,7 +372,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     public boolean isAdmin(HttpServletRequest request) {
         UserDto loginUser = (UserDto) request.getSession().getAttribute(USER_LOGIN_STATE);
-        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+        return loginUser == null || loginUser.getUserRole() != ADMIN_ROLE;
     }
 
     /**
@@ -387,7 +387,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
 
     @Override
-    public User getLoginUser(HttpServletRequest request) {
+    public UserDto getLoginUser(HttpServletRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -395,12 +395,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userObj == null) {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
-        return (User) userObj;
+        return (UserDto) userObj;
     }
 
 
     public boolean isAdmin(UserDto loginUser) {
-        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+        return loginUser == null || loginUser.getUserRole() != ADMIN_ROLE;
     }
 
     /**

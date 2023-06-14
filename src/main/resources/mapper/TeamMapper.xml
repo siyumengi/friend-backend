@@ -12,6 +12,7 @@
             <result property="expireTime" column="expireTime" jdbcType="TIMESTAMP"/>
             <result property="userId" column="userId" jdbcType="BIGINT"/>
             <result property="status" column="status" jdbcType="INTEGER"/>
+            <result property="avatarUrl" column="avatarUrl" jdbcType="VARCHAR"/>
             <result property="password" column="password" jdbcType="VARCHAR"/>
             <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
             <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
@@ -24,4 +25,14 @@
         status,password,createTime,
         updateTime,isDelete
     </sql>
+    <select id="SelectUsers" resultType="com.sym.friend.model.domain.User">
+        select *
+        from user,
+             (select user_team.userId
+              from team,
+                   user_team
+              where #{teamId} = user_team.teamId
+                and team.id = user_team.teamId and user_team.isDelete =0) as S
+        where user.id = S.userId
+    </select>
 </mapper>

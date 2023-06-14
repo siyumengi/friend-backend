@@ -25,7 +25,6 @@ CREATE TABLE `user`  (
   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '用户 ID',
   `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '用户昵称',
   `userPassword` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '密码',
-  `nickname` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '昵称',
   `gender` tinyint(0) NOT NULL DEFAULT 0 COMMENT '性别：0-未知；1-男；2-女',
   `age` tinyint(0) NULL DEFAULT NULL COMMENT '年龄',
   `phone` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '电话',
@@ -71,3 +70,39 @@ create table user_team
   updateTime datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
   isDelete   tinyint  default 0 not null comment '是否删除'
 ) comment '用户队伍关系';
+
+
+-- 帖子表
+CREATE TABLE `post` (
+                      `postId` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '帖子 ID',
+                      `title` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '帖子标题',
+                      `content` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '帖子内容',
+                      `postTime` datetime(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '帖子发布时间',
+                      `authorId` bigint(0) NOT NULL COMMENT '作者 ID',
+                      `viewCount` bigint(0) NOT NULL DEFAULT 0 COMMENT '浏览次数',
+                      `replyCount` bigint(0) NOT NULL DEFAULT 0 COMMENT '回复次数',
+                      `likeCount` bigint(0) NOT NULL DEFAULT 0 COMMENT '点赞次数',
+                      `latestReplyTime` datetime(0) NULL COMMENT '最近回复时间',
+                      `topicId` bigint(0) NOT NULL COMMENT '话题 ID',
+                      `image` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL COMMENT '帖子图片',
+                      `attachment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL COMMENT '帖子附件',
+                      `status` tinyint(1) NOT NULL DEFAULT 0 COMMENT '审核状态：0-待审核；1-已通过；2-未通过',
+                      `isTop` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否置顶：0-否；1-是',
+                      PRIMARY KEY (`postId`) USING BTREE,
+                      INDEX `idx_authorId` (`authorId`) USING BTREE,
+                      INDEX `idx_topicId` (`topicId`) USING BTREE,
+                      createTime  datetime default CURRENT_TIMESTAMP null comment '创建时间',
+                      updateTime  datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
+                      isDelete    tinyint  default 0 not null comment '是否删除'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子表';
+
+# user-post
+CREATE TABLE `user_post` (
+                           `postId` bigint(0) NOT NULL,
+                           `userId` bigint(0) NOT NULL,
+                           createTime  datetime default CURRENT_TIMESTAMP null comment '创建时间',
+                           updateTime  datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
+                           isDelete    tinyint  default 0 not null comment '是否删除',
+                           PRIMARY KEY (`postId`, `userId`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子-用户中间表';
+

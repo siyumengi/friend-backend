@@ -25,16 +25,16 @@ public class QiniuOssUtils {
      */
 
 
-    private static final String BUCKET = "picture-img1";
+    private static final String BUCKET = "firend-backend";
     /**
      * accessKey和secretKey
      */
-    private static final String ACCESS_KEY = "Zgv9_BX5bEZTl7aMzYEhBi0Vp61GYjdQe6ZpnSu_";
-    private static final String SECRET_KEY = "u7pTnPasa9EPJXlOoJzVr6tqFj56MDMEftr0LnAq";
+    private static final String ACCESS_KEY = "yx0mlrV1RPm9qPWYmOddPioKAxGGWRF8wcynkcjf";
+    private static final String SECRET_KEY = "AlG8JHnIUAhsEdpFQut6IlrtP6Nd1oxc8YEdaLq0";
     /**
      * 外网访问地址(内置域名有效期只有30天)
      */
-    private static final String BASE_URL = "http://ru5ziixua.hd-bkt.clouddn.com/";
+    private static final String BASE_URL = "http://rw8frd8c7.bkt.clouddn.com/";
 
     /**
      * 上传管理器
@@ -47,7 +47,7 @@ public class QiniuOssUtils {
 
     public QiniuOssUtils() {
         //创建配置对象
-        Configuration cfg = new Configuration(Region.huadong());
+        Configuration cfg = new Configuration(Region.huadongZheJiang2());
         //创建上传管理器
         upload = new UploadManager(cfg);
         //创建存储空间管理器

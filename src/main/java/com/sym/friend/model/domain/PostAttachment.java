@@ -1,9 +1,6 @@
 package com.sym.friend.model.domain;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -11,24 +8,27 @@ import java.util.Date;
 import lombok.Data;
 
 /**
- * 帖子-用户中间表
- *
- * @TableName user_post
+ * 帖子附件表
+ * @TableName post_attachment
  */
-@TableName(value = "user_post")
+@TableName(value ="post_attachment")
 @Data
-public class UserPost implements Serializable {
+public class PostAttachment implements Serializable {
+    /**
+     * 附件 ID
+     */
     @TableId(type = IdType.AUTO)
     private Long id;
+
     /**
-     *
+     * 帖子 ID
      */
     private Long postId;
 
     /**
-     *
+     * 附件 URL
      */
-    private Long userId;
+    private String url;
 
     /**
      * 创建时间
@@ -43,6 +43,7 @@ public class UserPost implements Serializable {
     /**
      * 是否删除
      */
+    @TableLogic
     private Integer isDelete;
 
     @TableField(exist = false)

@@ -2,6 +2,7 @@ package com.sym.friend.service;
 
 import com.sym.friend.model.domain.UserPost;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.sym.friend.model.dto.UserDto;
 
 /**
 * @author siyumeng
@@ -9,5 +10,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 * @createDate 2023-06-14 19:17:43
 */
 public interface UserPostService extends IService<UserPost> {
+
 
 }

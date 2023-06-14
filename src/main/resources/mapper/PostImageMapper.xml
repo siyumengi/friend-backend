@@ -2,20 +2,20 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.sym.friend.mapper.UserPostMapper">
+<mapper namespace="com.sym.friend.mapper.PostImageMapper">
 
-    <resultMap id="BaseResultMap" type="com.sym.friend.model.domain.UserPost">
+    <resultMap id="BaseResultMap" type="com.sym.friend.model.domain.PostImage">
         <id property="id" column="id" jdbcType="BIGINT"/>
-
-        <id property="postId" column="postId" jdbcType="BIGINT"/>
-        <id property="userId" column="userId" jdbcType="BIGINT"/>
+        <result property="postId" column="postId" jdbcType="BIGINT"/>
+        <result property="url" column="url" jdbcType="VARCHAR"/>
         <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
         <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
         <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
     </resultMap>
+
     <sql id="Base_Column_List">
-         id ,postId
-        ,userId,createTime,
+        id
+        ,postId,url,createTime,
         updateTime,isDelete
     </sql>
 </mapper>

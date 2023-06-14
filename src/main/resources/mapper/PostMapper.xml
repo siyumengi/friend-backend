@@ -15,8 +15,6 @@
             <result property="likeCount" column="likeCount" jdbcType="BIGINT"/>
             <result property="latestReplyTime" column="latestReplyTime" jdbcType="TIMESTAMP"/>
             <result property="topicId" column="topicId" jdbcType="BIGINT"/>
-            <result property="image" column="image" jdbcType="VARCHAR"/>
-            <result property="attachment" column="attachment" jdbcType="VARCHAR"/>
             <result property="postStatus" column="postStatus" jdbcType="TINYINT"/>
             <result property="isTop" column="isTop" jdbcType="TINYINT"/>
             <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>

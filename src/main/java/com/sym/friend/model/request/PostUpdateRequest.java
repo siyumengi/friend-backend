@@ -1,24 +1,28 @@
-package com.sym.friend.model.domain;
+package com.sym.friend.model.request;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
-import lombok.Data;
 
 /**
- * 帖子表
- * @TableName post
+ *
  */
-@TableName(value ="post")
 @Data
-public class Post implements Serializable {
+public class PostUpdateRequest implements Serializable {
     /**
      * 帖子 ID
      */
     @TableId(type = IdType.AUTO)
     private Long postId;
-
+    /**
+     * 当前用户 ID
+     */
+    private String currentId;
     /**
      * 帖子标题
      */
@@ -65,7 +69,6 @@ public class Post implements Serializable {
     private Long topicId;
 
 
-
     /**
      * 审核状态：0-待审核；1-已通过；2-未通过
      */
@@ -76,21 +79,11 @@ public class Post implements Serializable {
      */
     private Integer isTop;
 
-    /**
-     * 创建时间
-     */
-    private Date createTime;
 
-    /**
-     * 
-     */
-    private Date updateTime;
 
-    /**
-     * 是否删除
-     */
-    @TableLogic
-    private Integer isDelete;
+
+
+
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

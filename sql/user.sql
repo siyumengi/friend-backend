@@ -96,7 +96,7 @@ CREATE TABLE `post` (
                       isDelete    tinyint  default 0 not null comment '是否删除'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子表';
 
-# user-post
+# 用户 帖子表
 CREATE TABLE `user_post` (
                            `postId` bigint(0) NOT NULL,
                            `userId` bigint(0) NOT NULL,
@@ -106,3 +106,26 @@ CREATE TABLE `user_post` (
                            PRIMARY KEY (`postId`, `userId`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子-用户中间表';
 
+# 帖子图片表
+CREATE TABLE `post_image` (
+                              `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '图片 ID',
+                              `postId` bigint(0) NOT NULL COMMENT '帖子 ID',
+                              `url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '图片 URL',
+                              `createTime` datetime NULL COMMENT '创建时间',
+                              `updateTime` datetime NULL COMMENT '更新时间',
+                              `isDelete` int(1) DEFAULT '0' COMMENT '是否删除：0-未删除；1-已删除',
+                              PRIMARY KEY (`id`) USING BTREE,
+                              INDEX `idx_postId` (`postId`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子图片表';
+
+# 帖子附件表
+CREATE TABLE `post_attachment` (
+                                   `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '附件 ID',
+                                   `postId` bigint(0) NOT NULL COMMENT '帖子 ID',
+                                   `url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '附件 URL',
+                                   `createTime` datetime NULL COMMENT '创建时间',
+                                   `updateTime` datetime NULL COMMENT '更新时间',
+                                   `isDelete` int(1) DEFAULT '0' COMMENT '是否删除：0-未删除；1-已删除',
+                                   PRIMARY KEY (`id`) USING BTREE,
+                                   INDEX `idx_postId` (`postId`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子附件表';

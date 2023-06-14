@@ -1,18 +1,15 @@
-package com.sym.friend.model.domain;
+package com.sym.friend.model.vo;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.Data;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.Serializable;
 import java.util.Date;
-import lombok.Data;
 
-/**
- * 帖子表
- * @TableName post
- */
-@TableName(value ="post")
 @Data
-public class Post implements Serializable {
+public class PostVo implements Serializable {
     /**
      * 帖子 ID
      */
@@ -44,20 +41,10 @@ public class Post implements Serializable {
      */
     private Long viewCount;
 
-    /**
-     * 回复次数
-     */
-    private Long replyCount;
 
-    /**
-     * 点赞次数
-     */
-    private Long likeCount;
 
-    /**
-     * 最近回复时间
-     */
-    private Date latestReplyTime;
+
+
 
     /**
      * 话题 ID
@@ -75,23 +62,4 @@ public class Post implements Serializable {
      * 是否置顶：0-否；1-是
      */
     private Integer isTop;
-
-    /**
-     * 创建时间
-     */
-    private Date createTime;
-
-    /**
-     * 
-     */
-    private Date updateTime;
-
-    /**
-     * 是否删除
-     */
-    @TableLogic
-    private Integer isDelete;
-
-    @TableField(exist = false)
-    private static final long serialVersionUID = 1L;
 }

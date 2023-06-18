@@ -64,6 +64,11 @@ public class Post implements Serializable {
      */
     private Long topicId;
 
+    /**
+     * 图片
+     */
+    private Long postImgId;
+
 
 
     /**

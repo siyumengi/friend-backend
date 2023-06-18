@@ -31,7 +31,10 @@ public class TeamUpdateRequest implements Serializable {
      * 描述
      */
     private String description;
-
+    /**
+     * 最大人数
+     */
+    private Integer maxNum;
     /**
      * 过期时间
      */

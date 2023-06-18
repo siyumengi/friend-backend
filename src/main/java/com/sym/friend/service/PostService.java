@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.sym.friend.model.dto.PostQuery;
 import com.sym.friend.model.dto.UserDto;
 import com.sym.friend.model.request.PostUpdateRequest;
+import com.sym.friend.model.vo.PostVo;
 
 import java.util.List;
 
@@ -17,11 +18,13 @@ public interface PostService extends IService<Post> {
 
     /**
      * 添加帖子
-     * @param post 帖子信息
+     *
+     * @param post      帖子信息
      * @param loginUser 登录用户
+     * @param imageUrl
      * @return 是否添加成功
      */
-    long addPost(Post post, UserDto loginUser);
+    long addPost(Post post, UserDto loginUser, String imageUrl);
 
     /**
      * 更新帖子信息
@@ -31,9 +34,9 @@ public interface PostService extends IService<Post> {
      */
     boolean updateTeam(PostUpdateRequest postUpdateRequest, UserDto loginUser);
 
-    List<Post> listPost(PostQuery postQuery, boolean isAdmin);
+    List<PostVo> listPost(PostQuery postQuery, boolean isAdmin);
 
     boolean deleteByPostId(long id, UserDto loginUser);
 
-    List<Post> listMyCreateTeams(PostQuery postQuery, UserDto loginUser);
+    List<PostVo> listMyCreateTeams(PostQuery postQuery, UserDto loginUser);
 }

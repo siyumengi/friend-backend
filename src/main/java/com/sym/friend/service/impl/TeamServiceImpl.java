@@ -3,6 +3,7 @@ package com.sym.friend.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sym.friend.common.ErrorCode;
+import com.sym.friend.constant.UserConstant;
 import com.sym.friend.exception.BusinessException;
 import com.sym.friend.model.domain.Team;
 import com.sym.friend.model.domain.User;
@@ -230,11 +231,13 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 //            将队伍信息拷贝到teamUserVO中
             BeanUtils.copyProperties(team, teamUserVO);
 //            将创建人用户信息脱敏
-            BeanUtils.copyProperties(CreateUserById, CreateUserVO);
+            if (CreateUserById != null){
+                BeanUtils.copyProperties(CreateUserById, CreateUserVO);
+            }
             teamUserVO.setCreateUser(CreateUserVO);
 //          3、通过队伍id在队伍用户表中查询出用户关系集合
             List<User> users = teamMapper.SelectUsers(teamId);
-            List<UserVO> Users = new ArrayList<>();
+            List<UserVO> userVOList = new ArrayList<>();
             for (User user : users) {
 //          4、遍历集合获取用户id得到用户
 //                如果用户存在
@@ -242,10 +245,12 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
                     UserVO userVO = new UserVO();
 //          5、用户脱敏
                     BeanUtils.copyProperties(user, userVO);
-                    Users.add(userVO);
+                    userVOList.add(userVO);
                 }
             }
-            teamUserVO.setUserVOS(Users);
+            if(CollectionUtils.isNotEmpty(users)){
+                teamUserVO.setUserVOS(userVOList);
+            }
             teamUserVOList.add(teamUserVO);
         }
         return teamUserVOList;
@@ -412,7 +417,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         Team team = getTeamById(id);
         long teamId = team.getId();
         // 校验你是不是队伍的队长
-        if (team.getUserId() != loginUser.getId()) {
+        if (team.getUserId().equals(loginUser.getId()) || loginUser.getUserRole() != UserConstant.ADMIN_ROLE) {
             throw new BusinessException(ErrorCode.NO_AUTH, "无访问权限");
         }
         // 移除所有加入队伍的关联信息

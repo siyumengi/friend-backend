@@ -42,15 +42,10 @@ public class PostVo implements Serializable {
     private Long viewCount;
 
 
-
-
-
-
     /**
      * 话题 ID
      */
     private Long topicId;
-
 
 
     /**
@@ -62,4 +57,7 @@ public class PostVo implements Serializable {
      * 是否置顶：0-否；1-是
      */
     private Integer isTop;
+
+
+    private String imageUrl;
 }

@@ -5,25 +5,26 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.sym.friend.common.ErrorCode;
 import com.sym.friend.exception.BusinessException;
 import com.sym.friend.model.domain.Post;
-import com.sym.friend.model.domain.Team;
+import com.sym.friend.model.domain.PostImage;
 import com.sym.friend.model.domain.UserPost;
-import com.sym.friend.model.domain.UserTeam;
 import com.sym.friend.model.dto.PostQuery;
 import com.sym.friend.model.dto.UserDto;
-import com.sym.friend.model.enums.TeamStatusEnum;
 import com.sym.friend.model.request.PostUpdateRequest;
+import com.sym.friend.model.vo.PostVo;
+import com.sym.friend.service.PostImageService;
 import com.sym.friend.service.PostService;
 import com.sym.friend.mapper.PostMapper;
 import com.sym.friend.service.UserPostService;
 import com.sym.friend.service.UserService;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
 * @author siyumeng
@@ -38,8 +39,10 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
     private UserPostService userPostService;
     @Resource
     private UserService userService;
+    @Resource
+    private PostImageService postImageService;
     @Override
-    public long addPost(Post post, UserDto loginUser) {
+    public long addPost(Post post, UserDto loginUser, String imageUrl) {
         //        1. 请求参数是否为空
         if (post == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -61,19 +64,26 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入内容");
         }
         QueryWrapper<Post> queryWrapper = new QueryWrapper<>();
-//        4. 插入队伍信息到队伍表
+
+
+//        4. 插入信息到帖子表
         post.setPostId(null);
         post.setAuthorId(userId);
+        post.setIsTop(0);
         boolean result = this.save(post);
         Long teamId = post.getPostId();
         if (!result || teamId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "发表帖子失败");
         }
-//        5. 插入用户  => 队伍关系到关系表
-        UserPost userPost = new UserPost();
-        userPost.setUserId(userId);
-        userPost.setPostId(teamId);
-        result = userPostService.save(userPost);
+//        5. 插入图片  => 帖子关系到关系表
+        PostImage postImage = new PostImage();
+        if (StringUtils.isNotBlank(imageUrl)) {
+            postImage.setPostId(post.getPostId());
+            postImage.setUrl(imageUrl);
+            result = postImageService.save(postImage);
+        }
+        post.setPostImgId(postImage.getId());
+        result = this.updateById(post);
         if (!result) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "发表帖子失败");
         }
@@ -118,7 +128,13 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
         post.setUpdateTime(new Date());
 //        7. 执行更新
         boolean res = this.updateById(post);
-//        8. 是否更新成功
+//        8.更新图片
+        PostImage postImage = new PostImage();
+        postImage.setPostId(postId);
+        postImage.setUrl(postUpdateRequest.getImageUrl());
+        postImage.setId(post.getPostImgId());
+        res = postImageService.updateById(postImage);
+//        9. 是否更新成功
         if (!res) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "更新帖子失败");
         }
@@ -126,7 +142,7 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
     }
 
     @Override
-    public List<Post> listPost(PostQuery postQuery, boolean isAdmin) {
+    public List<PostVo> listPost(PostQuery postQuery, boolean isAdmin) {
 //        1. 请求参数校验
         if (postQuery == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -148,7 +164,7 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
             queryWrapper.eq("author_id", authorId);
         }
 //        4. 是否是管理员，如果不是管理员，只能查询已经发布的帖子
-        return this.list(queryWrapper);
+        return getPostVos(queryWrapper);
 
     }
 
@@ -179,15 +195,15 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "删除帖子失败");
         }
 //        7. 删除帖子关系
-        QueryWrapper<UserPost> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("postId", id);
-        queryWrapper.eq("userId", userId);
-        res = userPostService.remove(queryWrapper);
+//        QueryWrapper<UserPost> queryWrapper = new QueryWrapper<>();
+//        queryWrapper.eq("postId", id);
+//        queryWrapper.eq("userId", userId);
+//        res = userPostService.remove(queryWrapper);
         return res;
     }
 
     @Override
-    public List<Post> listMyCreateTeams(PostQuery postQuery, UserDto loginUser) {
+    public List<PostVo> listMyCreateTeams(PostQuery postQuery, UserDto loginUser) {
 //        1. 请求参数校验
         if (postQuery == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -200,7 +216,25 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post>
 //        3. 查询自己的所有帖子
         QueryWrapper<Post> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("authorId", userId);
-        return this.list(queryWrapper);
+        return getPostVos(queryWrapper);
+    }
+
+    private List<PostVo> getPostVos(QueryWrapper<Post> queryWrapper) {
+        List<Post> list = this.list(queryWrapper);
+        List<PostVo> postVoList = new ArrayList<>();
+        for (Post post : list) {
+            Long postImgId = post.getPostImgId();
+            PostImage postImage = postImageService.getById(postImgId);
+            PostVo postVo = new PostVo();
+            BeanUtils.copyProperties(post, postVo);
+            if (postImage != null) {
+                postVo.setImageUrl(postImage.getUrl());
+            }else {
+                postVo.setImageUrl("");
+            }
+            postVoList.add(postVo);
+        }
+        return postVoList;
     }
 }
 

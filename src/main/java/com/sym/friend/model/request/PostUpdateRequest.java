@@ -81,7 +81,7 @@ public class PostUpdateRequest implements Serializable {
 
 
 
-
+    private String imageUrl;
 
 
 

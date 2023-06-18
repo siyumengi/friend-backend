@@ -6,18 +6,17 @@ import com.sym.friend.common.BaseResponse;
 import com.sym.friend.common.ErrorCode;
 import com.sym.friend.common.ResultUtils;
 import com.sym.friend.exception.BusinessException;
-import com.sym.friend.model.domain.Post;
-import com.sym.friend.model.domain.Team;
-import com.sym.friend.model.domain.User;
-import com.sym.friend.model.domain.UserTeam;
+import com.sym.friend.model.domain.*;
 import com.sym.friend.model.dto.PostQuery;
 import com.sym.friend.model.dto.TeamQuery;
 import com.sym.friend.model.dto.UserDto;
+import com.sym.friend.model.request.DeleteRequest;
 import com.sym.friend.model.request.PostAddRequest;
 import com.sym.friend.model.request.PostUpdateRequest;
 import com.sym.friend.model.vo.PostVo;
 import com.sym.friend.model.vo.TeamUserVO;
 import com.sym.friend.model.vo.UserVO;
+import com.sym.friend.service.PostImageService;
 import com.sym.friend.service.PostService;
 import com.sym.friend.service.UserPostService;
 import com.sym.friend.service.UserService;
@@ -52,7 +51,7 @@ public class PostController {
     @Resource
     private PostService postService;
     @Resource
-    private UserPostService userPostService;
+    private PostImageService postImageService;
 
     /**
      * 添加
@@ -72,7 +71,8 @@ public class PostController {
         UserDto loginUser = (UserDto) valueOperations.get(redisKey);
         Post post = new Post();
         BeanUtils.copyProperties(postAddRequest, post);
-        long teamId = postService.addPost(post, loginUser);
+        String imageUrl = postAddRequest.getImageUrl();
+        long teamId = postService.addPost(post, loginUser ,imageUrl);
         return ResultUtils.success(teamId);
     }
 
@@ -110,15 +110,17 @@ public class PostController {
      * @return
      */
     @GetMapping("/get")
-    public BaseResponse<Post> getPostById(long id) {
+    public BaseResponse<PostVo> getPostById(long id) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Post team = postService.getById(id);
-        if (team == null) {
-            throw new BusinessException(ErrorCode.NULL_ERROR);
-        }
-        return ResultUtils.success(team);
+        Post post = postService.getById(id);
+        Long postId = post.getPostId();
+        PostImage postImage = postImageService.getOne(new QueryWrapper<PostImage>().eq("postId", postId));
+        PostVo postVo = new PostVo();
+        BeanUtils.copyProperties(post, postVo);
+        postVo.setImageUrl(postImage.getUrl());
+        return ResultUtils.success(postVo);
     }
 
     /**
@@ -129,12 +131,12 @@ public class PostController {
      * @return
      */
     @GetMapping("/list")
-    public BaseResponse<List<Post>> listPost(PostQuery postQuery, HttpServletRequest request) {
+    public BaseResponse<List<PostVo>> listPost(PostQuery postQuery, HttpServletRequest request) {
         if (postQuery == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         boolean isAdmin = userService.isAdmin(request);
-        List<Post> postList = postService.listPost(postQuery, isAdmin);
+        List<PostVo> postList = postService.listPost(postQuery, isAdmin);
         return ResultUtils.success(postList);
     }
 
@@ -159,15 +161,17 @@ public class PostController {
 
     /**
      * 删除
-     * @param id     帖子id
+     * @param deleteRequest     帖子id
      * @param request
      * @return
      */
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deletePost(@RequestBody long id, HttpServletRequest request) {
-        if (id <= 0) {
+    public BaseResponse<Boolean> deletePost(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+        log.info("deleteRequest:" + deleteRequest);
+        if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        long id = deleteRequest.getId();
 //    获取当前用户
         UserDto loginUser = userService.getLoginUser(request);
         boolean res = postService.deleteByPostId(id, loginUser);
@@ -190,15 +194,8 @@ public class PostController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         UserDto loginUser = userService.getLoginUser(request);
-        List<Post> postList = postService.listMyCreateTeams(postQuery, loginUser);
-        List<PostVo> postVoList = new ArrayList<>();
-//      用 stream 流脱敏处理
-        postList.forEach(post -> {
-            PostVo postVo = new PostVo();
-            BeanUtils.copyProperties(post, postVo);
-            postVoList.add(postVo);
-        });
-        return ResultUtils.success(postVoList);
+        List<PostVo> postList = postService.listMyCreateTeams(postQuery, loginUser);
+        return ResultUtils.success(postList);
     }
 
 }
